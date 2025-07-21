@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Construtor de Automação Visual</title>
+    <!-- CSS do Drawflow -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
+    <!-- Nosso CSS customizado -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Construtor de Automação Visual</h1>
+    <div class="main-container">
+        <div id="toolbox">
+            <h3>Ações</h3>
+            <div class="toolbox-item" draggable="true" data-node="Inicio">Início</div>
+            <div class="toolbox-item" draggable="true" data-node="VerificarTela">Verificar Tela (IF)</div>
+            <div class="toolbox-item" draggable="true" data-node="Tocar">Ação: Tocar</div>
+            <div class="toolbox-item" draggable="true" data-node="Digitar">Ação: Digitar</div>
+            <div class="toolbox-item" draggable="true" data-node="Sucesso">Fim (Sucesso)</div>
+            <div class="toolbox-item" draggable="true" data-node="Falha">Fim (Falha)</div>
+        </div>
+
+        <div id="drawflow"></div>
+
+    </div>
+    <div class="footer">
+        <button id="generate-json-btn">Gerar Receita JSON</button>
+        <h3>Receita Gerada:</h3>
+        <pre id="json-output"></pre>
+    </div>
+
+    <!-- JS do Drawflow e nosso script -->
+    <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
+    <script defer src="script.js"></script>
+</body>
+</html>
