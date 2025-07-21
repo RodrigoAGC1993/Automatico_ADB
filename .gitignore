@@ -1,0 +1,26 @@
+# Ignore Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Ignore PowerShell temporary files
+*.ps1xml
+*.psc1
+*.pssc
+
+# Ignore Visual Studio Code settings folder
+.vscode/
+
+# Ignore node_modules if any (common)
+node_modules/
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
+*.temp
+
+# Ignore any user-specific files
+*.user
+*.suo
