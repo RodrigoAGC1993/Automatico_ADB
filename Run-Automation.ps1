@@ -14,14 +14,17 @@ function Get-ScreenXml($adbTarget) {
         Write-Host "Capturando hierarquia da UI..."
         $dumpOutput = adb $adbTarget shell uiautomator dump
         if ($LASTEXITCODE -ne 0) { return $null }
-        $dumpPath = $dumpOutput -match '[^ ]+.xml' | ForEach-Object { $_.Matches[0].Value }
-        adb $adbTarget pull $dumpPath view.xml > $null
+        $dumpOutput -match '[^ ]+.xml'
+        $dumpPath = $Matches[0]
+        adb $adbTarget pull $dumpPath view.xml
         return [xml](Get-Content view.xml)
     } catch {
-        Write-Error "Falha ao capturar a UI."
+        Write-Host "Falha ao capturar a UI."
         return $null
     }
 }
+
+
 
 # Função para verificar se um elemento existe na tela
 function Test-ElementExists($xml, $keyword) {
@@ -44,7 +47,7 @@ function Find-Element($xml, $keyword) {
 # Função para executar a ação de Tocar
 function Invoke-Tap($adbTarget, $element) {
     if (-not $element) {
-        Write-Error "Elemento para tocar não foi encontrado."
+        Write-Host "Elemento para tocar não foi encontrado."
         return
     }
     $bounds = $element.bounds
@@ -131,7 +134,7 @@ Write-Host "---"
 if ($passoAtualNome -eq "Fim") {
     Write-Host "Automação concluída com sucesso!"
 } else {
-    Write-Error "Automação finalizada. Estado final: $passoAtualNome"
+    Write-Host "Automação finalizada. Estado final: $passoAtualNome"
 }
 
 # Limpeza

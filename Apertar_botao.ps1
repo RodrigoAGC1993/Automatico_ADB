@@ -41,7 +41,7 @@ try {
     $dumpOutput = adb $adbTarget shell uiautomator dump
     Write-Host "{$dumpOutput}"
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Falha ao executar 'uiautomator dump'. Verifique a conexão com o dispositivo ($IpAddress)."
+        Write-Host "Falha ao executar 'uiautomator dump'. Verifique a conexão com o dispositivo ($IpAddress)."
         exit
     }
     $dumpOutput -match '[^ ]+.xml'
@@ -52,7 +52,7 @@ try {
     $out = adb $adbTarget pull $dumpPath view.xml
     Write-Host $out
 } catch {
-    Write-Error "Ocorreu um erro ao capturar a UI. Certifique-se de que o 'adb' está no seu PATH e o dispositivo está acessível."
+    Write-Host "Ocorreu um erro ao capturar a UI. Certifique-se de que o 'adb' está no seu PATH e o dispositivo está acessível."
     exit
 }
 
@@ -98,7 +98,8 @@ if ($foundNode) {
     Invoke-Expression $tapCommand
 
 } else {
-    Write-Error "Nenhum elemento com o texto '$Keyword' foi encontrado na tela atual."
+    Write-Host "Nenhum elemento com o texto '$Keyword' foi encontrado na tela atual."
+    exit
 }
 
 # Limpa o arquivo XML baixado

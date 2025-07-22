@@ -1,52 +1,48 @@
-# Definindo a "Receita" da nossa automação
-$receita = @{
-    # O PONTO DE PARTIDA
-    'Inicio' = @{
-        Descricao = "Verificando a tela inicial do app"
-        Acao = $null # Nenhuma ação, apenas verificar a tela
-        Transicoes = @(
-            @{ ChecarElementoComTexto = "Bem-vindo"; ProximoPasso = "TelaDeBoasVindas" },
-            @{ ChecarElementoComTexto = "Login"; ProximoPasso = "TelaDeLogin" }
-        )
-        PassoPadrao = "ErroInesperado" # Se nenhuma transição for satisfeita
-    }
-
-    'TelaDeBoasVindas' = @{
-        Descricao = "Na tela de boas-vindas, tocar em Continuar"
-        Acao = @{
-            Tipo = "Tocar"
-            ElementoComTexto = "Continuar"
-        }
-        Transicoes = @(
-            # Depois de tocar, esperamos ir para a tela principal
-            @{ ChecarElementoComTexto = "Painel"; ProximoPasso = "TelaPrincipal" }
-        )
-        PassoPadrao = "ErroInesperado"
-    }
-
-    'TelaDeLogin' = @{
-        Descricao = "Na tela de login, tocar em Entrar"
-        Acao = @{
-            Tipo = "Tocar"
-            ElementoComTexto = "Entrar"
-        }
-        Transicoes = @(
-            @{ ChecarElementoComTexto = "Painel"; ProximoPasso = "TelaPrincipal" }
-        )
-        PassoPadrao = "ErroInesperado"
-    }
-
-    'TelaPrincipal' = @{
-        Descricao = "Chegamos na tela principal. Sucesso!"
-        Acao = $null
-        Transicoes = @() # Sem transições, é um passo final
-        ProximoPassoFinal = "Fim" # Define o fim do fluxo
-    }
-
-    'ErroInesperado' = @{
-        Descricao = "ERRO: A tela atual não corresponde a nenhum estado esperado."
-        Acao = $null
-        Transicoes = @()
-        ProximoPassoFinal = "FimComErro"
-    }
+{
+  "Inicio": {
+    "Descricao": "Passo 1: Inicio",
+    "Acao": null,
+    "Transicoes": [],
+    "PassoPadrao": "passo_2",
+    "ProximoPassoFinal": null
+  },
+  "passo_2": {
+    "Descricao": "Passo 2: VerificarTela",
+    "Acao": null,
+    "Transicoes": [
+      {
+        "ChecarElementoComTexto": "Defini",
+        "ProximoPasso": "passo_3"
+      }
+    ],
+    "PassoPadrao": "ErroInesperado",
+    "ProximoPassoFinal": null
+  },
+  "passo_3": {
+    "Descricao": "Passo 3: Tocar",
+    "Acao": {
+      "Tipo": "Tocar",
+      "ElementoComTexto": "pesquisa"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_4",
+    "ProximoPassoFinal": null
+  },
+  "passo_4": {
+    "Descricao": "Passo 4: Digitar",
+    "Acao": {
+      "Tipo": "Digitar",
+      "Texto": "Acerca"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_5",
+    "ProximoPassoFinal": null
+  },
+  "passo_5": {
+    "Descricao": "Passo 5: Sucesso",
+    "Acao": null,
+    "Transicoes": [],
+    "PassoPadrao": null,
+    "ProximoPassoFinal": "Fim"
+  }
 }
