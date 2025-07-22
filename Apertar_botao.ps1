@@ -39,13 +39,18 @@ Write-Host "Capturando a hierarquia da UI do dispositivo..."
 try {
     # Adiciona a variável $adbTarget ao comando
     $dumpOutput = adb $adbTarget shell uiautomator dump
+    Write-Host "{$dumpOutput}"
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Falha ao executar 'uiautomator dump'. Verifique a conexão com o dispositivo ($IpAddress)."
         exit
     }
-    $dumpPath = $dumpOutput -match '[^ ]+.xml' | ForEach-Object { $_.Matches[0].Value }
+    $dumpOutput -match '[^ ]+.xml'
+    $dumpPath = $Matches[0]
+
+    Write-Host "{$dumpPath}"
     # Adiciona a variável $adbTarget ao comando
-    adb $adbTarget pull $dumpPath view.xml
+    $out = adb $adbTarget pull $dumpPath view.xml
+    Write-Host $out
 } catch {
     Write-Error "Ocorreu um erro ao capturar a UI. Certifique-se de que o 'adb' está no seu PATH e o dispositivo está acessível."
     exit
@@ -90,7 +95,7 @@ if ($foundNode) {
     Write-Host "Comando para tocar: $tapCommand"
     
     # Para usar, remova o '#' da linha abaixo
-    # Invoke-Expression $tapCommand
+    Invoke-Expression $tapCommand
 
 } else {
     Write-Error "Nenhum elemento com o texto '$Keyword' foi encontrado na tela atual."
