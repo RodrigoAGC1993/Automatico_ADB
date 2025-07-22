@@ -1,6 +1,5 @@
-# --- INÍCIO DO MOTOR DE AUTOMAÇÃO ---
+﻿# --- INÍCIO DO MOTOR DE AUTOMAÇÃO (VERSÃO FINAL E ROBUSTA) ---
 
-# Parâmetros do script (como antes)
 param(
     [Parameter(Mandatory=$false)]
     [string]$IpAddress
@@ -8,122 +7,143 @@ param(
 
 # --- Funções Auxiliares ---
 
-# Função para obter a hierarquia da UI atual
-function Get-ScreenXml($adbTarget) {
-    try {
-        Write-Host "Capturando hierarquia da UI..."
-        $dumpOutput = adb $adbTarget shell uiautomator dump
-        if ($LASTEXITCODE -ne 0) { return $null }
-        $dumpOutput -match '[^ ]+.xml'
-        $dumpPath = $Matches[0]
-        adb $adbTarget pull $dumpPath view.xml
-        return [xml](Get-Content view.xml)
-    } catch {
-        Write-Host "Falha ao capturar a UI."
-        return $null
+function Get-ScreenData($adbTarget) {
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            Write-Host "Capturando hierarquia da UI (Tentativa $attempt)..."
+            Start-Sleep -Milliseconds 250
+            $dumpOutput = adb $adbTarget shell uiautomator dump
+            if ($LASTEXITCODE -ne 0 -or $dumpOutput -like "*ERROR*") {
+                Write-Warning "Comando 'uiautomator dump' falhou. Tentando novamente..."
+                Start-Sleep -Seconds 1; continue
+            }
+            if ($dumpOutput -match 'dumped to: (/[\w/.-]+\.xml)') {
+                $dumpPath = $Matches[1].Trim()
+            } else {
+                Write-Warning "Não foi possível encontrar o caminho do dump XML. Tentando novamente..."
+                Start-Sleep -Seconds 1; continue
+            }
+            if (Test-Path ".\view.xml") { Remove-Item ".\view.xml" }
+            adb $adbTarget pull $dumpPath view.xml > $null
+            if ((Test-Path ".\view.xml") -and (Get-Item ".\view.xml").Length -gt 0) {
+                $xmlContent = Get-Content -Raw -Path ".\view.xml" -Encoding UTF8
+                return [PSCustomObject]@{
+                    Xml = [xml]$xmlContent
+                    Hash = (Get-FileHash -Algorithm MD5 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes($xmlContent)))).Hash
+                }
+            }
+        } catch { Write-Warning "Exceção na tentativa $attempt. $_"; Start-Sleep -Seconds 1 }
     }
+    Write-Error "Falha crítica ao capturar a UI após 3 tentativas."
+    return $null
 }
 
-
-
-# Função para verificar se um elemento existe na tela
-function Test-ElementExists($xml, $keyword) {
-    # Busca por texto ou descrição de conteúdo
-    $node = $xml.SelectNodes("//node[@text and contains(@text, '$keyword')]")
-    if ($node) { return $true }
-    
-    $node = $xml.SelectNodes("//node[@content-desc and contains(@content-desc, '$keyword')]")
-    if ($node) { return $true }
-
-    return $false
+function Wait-For-ScreenChange($adbTarget, $initialHash, [ref]$newXmlData) {
+    $timeoutSeconds = 10
+    Write-Host "Aguardando alteração na tela (timeout de $timeoutSeconds segundos)..."
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($stopwatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
+        $currentScreenData = Get-ScreenData -adbTarget $adbTarget
+        if ($currentScreenData -and $currentScreenData.Hash -ne $initialHash) {
+            $stopwatch.Stop(); Write-Host "Tela alterada! Prosseguindo..."; $newXmlData.Value = $currentScreenData; return $true
+        }
+        Start-Sleep -Seconds 1
+    }
+    $stopwatch.Stop(); Write-Error "TIMEOUT: A tela não mudou após $timeoutSeconds segundos."; return $false
 }
 
-# Função para encontrar um elemento e retornar seus dados
 function Find-Element($xml, $keyword) {
-    $node = $xml.SelectSingleNode("//node[contains(@text, '$keyword') or contains(@content-desc, '$keyword')]")
-    return $node
+    if (-not $xml -is [System.Xml.XmlDocument] -or -not $keyword) { return $null }
+    $sanitizedKeyword = $keyword.Replace("'", "''").ToLower()
+    $query = "//node[contains(translate(@text, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '$sanitizedKeyword') or contains(translate(@content-desc, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '$sanitizedKeyword')]"
+    return $xml.SelectSingleNode($query)
 }
 
-# Função para executar a ação de Tocar
-function Invoke-Tap($adbTarget, $element) {
+# >>> FUNÇÕES DE AÇÃO ATUALIZADAS <<<
+function Invoke-TapAction($adbTarget, $xml, $keyword) {
+    $element = Find-Element -xml $xml -keyword $keyword
     if (-not $element) {
-        Write-Host "Elemento para tocar não foi encontrado."
-        return
+        Write-Warning "Elemento '$keyword' para tocar não foi encontrado na tela atual."
+        return $false # Retorna falha
     }
     $bounds = $element.bounds
-    $bounds -match '\[(.*?)\]\[(.*?)\]'
-    $p1 = $Matches[1] -split ','
-    $p2 = [regex]::Split($Matches[2], ',')
-    $xMid = ([int]$p1[0] + [int]$p2[0]) / 2
-    $yMid = ([int]$p1[1] + [int]$p2[1]) / 2
-    $coords = "$xMid $yMid"
-    
+    if ($bounds -notmatch '\[(\d+),(\d+)\]\[(\d+),(\d+)\]') { Write-Warning "Formato de 'bounds' inválido: $bounds"; return $false }
+    $xMid = ([int]$Matches[1] + [int]$Matches[3]) / 2
+    $yMid = ([int]$Matches[2] + [int]$Matches[4]) / 2
     $elementText = if ($element.text) { $element.text } else { $element.'content-desc' }
-    Write-Host "Ação: Tocando em '$elementText' nas coordenadas $coords"
-    adb $adbTarget shell input tap $coords
+    Write-Host "Ação: Tocando em '$elementText'..."
+    adb $adbTarget shell input tap "$xMid $yMid"
+    return $true # Retorna sucesso
+}
+
+function Invoke-TypeAction($adbTarget, $textToType) {
+    $formattedText = $textToType.Replace(' ', '%s')
+    Write-Host "Ação: Digitando o texto '$textToType'..."
+    adb $adbTarget shell input text "'$formattedText'"
+    return $true # Assume sucesso
 }
 
 
 # --- Lógica Principal do Motor ---
 
-# 1. Configuração do Dispositivo (igual ao script anterior)
+Write-Host "Carregando receita do arquivo 'receita.json'..."
+try { $receita = Get-Content -Raw -Path ".\receita.json" | ConvertFrom-Json } catch { Write-Error "Não foi possível encontrar ou ler o arquivo 'receita.json'."; exit }
+
 $adbTarget = ""
 if ($PSBoundParameters.ContainsKey('IpAddress')) {
     if ($IpAddress -notlike "*:*") { $IpAddress = "$IpAddress:5555" }
-    Write-Host "Conectando e direcionando comandos para $IpAddress..."
-    adb connect $IpAddress > $null
-    $adbTarget = "-s $IpAddress"
+    Write-Host "Conectando e direcionando comandos para $IpAddress..."; adb connect $IpAddress > $null; $adbTarget = "-s $IpAddress"
 }
 
-# 2. Loop de Execução da Automação
-$passoAtualNome = 'Inicio' # Define o ponto de partida
-$maxPassos = 20 # Um limite de segurança para evitar loops infinitos
-$passoCount = 0
+$passoAtualNome = ($receita.PSObject.Properties | Where-Object { $_.Name -eq 'Inicio' }).Name
+if (-not $passoAtualNome) { Write-Error "Ponto de partida 'Inicio' não encontrado na receita.json."; exit }
 
-while ($passoAtualNome -ne "Fim" -and $passoAtualNome -ne "FimComErro" -and $passoCount -lt $maxPassos) {
+$maxPassos = 20; $passoCount = 0; $fatalError = $false
+
+while ($passoAtualNome -and $passoAtualNome -ne "Fim" -and $passoAtualNome -ne "FimComErro" -and $passoCount -lt $maxPassos -and (-not $fatalError)) {
     $passoCount++
-    $passoAtual = $receita[$passoAtualNome]
-    
-    Write-Host "---"
-    Write-Host "Passo ($passoCount/$maxPassos): $($passoAtual.Descricao) ($passoAtualNome)"
-    
-    # Captura o estado atual da tela
-    $xmlDaTela = Get-ScreenXml $adbTarget
-    if (-not $xmlDaTela) {
-        $passoAtualNome = "ErroInesperado"
-        continue
-    }
+    $passoAtual = $receita.($passoAtualNome)
+    if (-not $passoAtual) { Write-Error "O passo '$passoAtualNome' não foi encontrado."; $fatalError = $true; continue }
 
-    # Executa a ação definida para o passo atual
-    if ($passoAtual.Acao) {
+    Write-Host "---"; Write-Host "Passo ($passoCount/$maxPassos): $($passoAtual.Descricao) ($passoAtualNome)"
+    
+    $telaAtualData = Get-ScreenData $adbTarget
+    if (-not $telaAtualData) { Write-Error "Não foi possível obter a hierarquia da UI."; $fatalError = $true; continue }
+
+    # >>> LÓGICA DE AÇÃO E ESPERA REFEITA <<<
+    if ($passoAtual.Acao -and $passoAtual.Acao.Tipo) {
+        $hashAntesDaAcao = $telaAtualData.Hash
+        $acaoBemSucedida = $false
+
         switch ($passoAtual.Acao.Tipo) {
-            "Tocar" {
-                $elementoParaTocar = Find-Element $xmlDaTela $passoAtual.Acao.ElementoComTexto
-                Invoke-Tap $adbTarget $elementoParaTocar
-                Start-Sleep -Seconds 2 # Espera um pouco para a UI atualizar após o toque
-            }
-            # Futuramente, você pode adicionar outras ações aqui: "Digitar", "Rolar", etc.
+            "Tocar"   { $acaoBemSucedida = Invoke-TapAction -adbTarget $adbTarget -xml $telaAtualData.Xml -keyword $passoAtual.Acao.ElementoComTexto }
+            "Digitar" { $acaoBemSucedida = Invoke-TypeAction -adbTarget $adbTarget -textToType $passoAtual.Acao.Texto }
         }
-        # Após uma ação, é bom recapturar a tela para verificar a transição
-        $xmlDaTela = Get-ScreenXml $adbTarget
+        
+        # Só espera por mudança na tela se a ação foi realmente executada
+        if ($acaoBemSucedida) {
+            $telaMudou = Wait-For-ScreenChange -adbTarget $adbTarget -initialHash $hashAntesDaAcao -newXmlData ([ref]$telaAtualData)
+            if (-not $telaMudou) { $fatalError = $true; continue }
+        }
     }
 
-    # Decide qual será o próximo passo (Lógica de Bifurcação)
+    # A verificação de transição usa os dados da tela mais recentes
+    $xmlDaTela = $telaAtualData.Xml
     $proximoPassoDefinido = $false
-    foreach ($transicao in $passoAtual.Transicoes) {
-        if (Test-ElementExists $xmlDaTela $transicao.ChecarElementoComTexto) {
-            Write-Host "Condição satisfeita: Elemento '$($transicao.ChecarElementoComTexto)' encontrado. Indo para o passo '$($transicao.ProximoPasso)'."
-            $passoAtualNome = $transicao.ProximoPasso
-            $proximoPassoDefinido = $true
-            break # Sai do loop de transições
+    if ($passoAtual.Transicoes) {
+        foreach ($transicao in $passoAtual.Transicoes) {
+            if ($transicao.ChecarElementoComTexto -and (Find-Element $xmlDaTela $transicao.ChecarElementoComTexto)) {
+                Write-Host "Condição satisfeita: Elemento '$($transicao.ChecarElementoComTexto)' encontrado. Indo para o passo '$($transicao.ProximoPasso)'."
+                $passoAtualNome = $transicao.ProximoPasso; $proximoPassoDefinido = $true; break
+            }
         }
     }
 
-    # Se nenhuma transição foi satisfeita, usa o passo padrão ou final
     if (-not $proximoPassoDefinido) {
         if ($passoAtual.ProximoPassoFinal) {
             $passoAtualNome = $passoAtual.ProximoPassoFinal
         } else {
+            Write-Host "Nenhuma condição satisfeita. Seguindo para o passo padrão: '$($passoAtual.PassoPadrao)'."
             $passoAtualNome = $passoAtual.PassoPadrao
         }
     }
@@ -131,11 +151,7 @@ while ($passoAtualNome -ne "Fim" -and $passoAtualNome -ne "FimComErro" -and $pas
 
 # --- Fim da Execução ---
 Write-Host "---"
-if ($passoAtualNome -eq "Fim") {
-    Write-Host "Automação concluída com sucesso!"
-} else {
-    Write-Host "Automação finalizada. Estado final: $passoAtualNome"
-}
+if ($passoAtualNome -eq "Fim") { Write-Host "Automação concluída com sucesso!" }
+else { Write-Error "Automação finalizada. Estado final: $passoAtualNome" }
 
-# Limpeza
 Remove-Item view.xml -ErrorAction SilentlyContinue

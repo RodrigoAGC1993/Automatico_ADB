@@ -74,57 +74,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- GERAÇÃO DO JSON (LÓGICA CORRIGIDA) ---
+    // --- GERAÇÃO DO JSON (LÓGICA FINAL COM BUSCA EM PROFUNDIDADE - DFS) ---
     generateJsonBtn.addEventListener('click', () => {
         const exportedData = editor.export();
         const drawflowNodes = exportedData.drawflow.Home.data;
         const receita = {};
+        const visited = new Set(); // Para evitar loops infinitos
 
-        for (const nodeId in drawflowNodes) {
+        // 1. Encontrar o nó inicial
+        const startNodeId = Object.keys(drawflowNodes).find(id => drawflowNodes[id].name === 'Inicio');
+        if (!startNodeId) {
+            alert("Erro: Nenhum nó 'Início' encontrado no fluxo. Por favor, adicione um.");
+            return;
+        }
+
+        // 2. Função recursiva para percorrer o grafo (DFS)
+        function traverse(nodeId) {
+            if (!nodeId || visited.has(nodeId)) {
+                return; // Se já visitou ou o nó é nulo, para.
+            }
+            
+            visited.add(nodeId);
             const node = drawflowNodes[nodeId];
+            if (!node) return;
+
+            // --- Constrói o passo atual ---
             const nodeType = node.name;
             const properties = node.data;
-
-            // >>> MUDANÇA 1: NOME DO PASSO <<<
-            // O nó "Inicio" deve ter a chave "Inicio". Outros nós usam "passo_X".
             const passoNome = (nodeType === 'Inicio') ? 'Inicio' : `passo_${nodeId}`;
 
-            const thenConnection = node.outputs.output_1 ? node.outputs.output_1.connections[0] : null;
+            const thenConnection = node.outputs.output_1?.connections[0];
             const thenNodeId = thenConnection ? `passo_${thenConnection.node}` : null;
 
-            const elseConnection = node.outputs.output_2 ? node.outputs.output_2.connections[0] : null;
+            const elseConnection = node.outputs.output_2?.connections[0];
             const elseNodeId = elseConnection ? `passo_${elseConnection.node}` : null;
 
             const passo = {
                 Descricao: `Passo ${nodeId}: ${nodeType}`,
                 Acao: null,
-                Transicoes: [], // Começa vazio por padrão
+                Transicoes: [],
                 PassoPadrao: elseNodeId || (nodeType !== 'VerificarTela' ? thenNodeId : "ErroInesperado"),
                 ProximoPassoFinal: null
             };
 
-            // Configura a Ação (incluindo Digitar)
             if (nodeType === 'Tocar') {
                 passo.Acao = { Tipo: "Tocar", ElementoComTexto: properties.elemento };
             } else if (nodeType === 'Digitar') {
                 passo.Acao = { Tipo: "Digitar", Texto: properties.texto };
             }
 
-            // >>> MUDANÇA 2: LÓGICA DE TRANSIÇÕES <<<
-            // Apenas o nó 'VerificarTela' deve ter uma transição condicional.
             if (nodeType === 'VerificarTela') {
                 passo.Transicoes.push({
                     ChecarElementoComTexto: properties.elemento,
                     ProximoPasso: thenNodeId
                 });
             }
-            // Para outros nós, o fluxo é controlado pelo PassoPadrao, então Transicoes fica vazio.
 
             if (nodeType === 'Sucesso') passo.ProximoPassoFinal = "Fim";
             if (nodeType === 'Falha') passo.ProximoPassoFinal = "FimComErro";
             
             receita[passoNome] = passo;
+            // --- Fim da construção do passo ---
+
+            // --- Chamada recursiva para os próximos nós ---
+            // A ordem aqui é importante: primeiro o caminho THEN, depois o ELSE.
+            if (thenConnection) {
+                traverse(thenConnection.node);
+            }
+            if (elseConnection) {
+                traverse(elseConnection.node);
+            }
         }
+
+        // 3. Inicia a travessia a partir do nó inicial
+        traverse(startNodeId);
 
         jsonOutput.textContent = JSON.stringify(receita, null, 2);
     });

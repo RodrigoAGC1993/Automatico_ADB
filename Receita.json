@@ -1,4 +1,4 @@
-{
+﻿{
   "Inicio": {
     "Descricao": "Passo 1: Inicio",
     "Acao": null,
@@ -7,39 +7,27 @@
     "ProximoPassoFinal": null
   },
   "passo_2": {
-    "Descricao": "Passo 2: VerificarTela",
-    "Acao": null,
-    "Transicoes": [
-      {
-        "ChecarElementoComTexto": "Defini",
-        "ProximoPasso": "passo_3"
-      }
-    ],
-    "PassoPadrao": "ErroInesperado",
+    "Descricao": "Passo 2: Tocar",
+    "Acao": {
+      "Tipo": "Tocar",
+      "ElementoComTexto": "Apps"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_3",
     "ProximoPassoFinal": null
   },
   "passo_3": {
     "Descricao": "Passo 3: Tocar",
     "Acao": {
       "Tipo": "Tocar",
-      "ElementoComTexto": "pesquisa"
+      "ElementoComTexto": "Definições"
     },
     "Transicoes": [],
-    "PassoPadrao": "passo_4",
+    "PassoPadrao": "passo_6",
     "ProximoPassoFinal": null
   },
-  "passo_4": {
-    "Descricao": "Passo 4: Digitar",
-    "Acao": {
-      "Tipo": "Digitar",
-      "Texto": "Acerca"
-    },
-    "Transicoes": [],
-    "PassoPadrao": "passo_5",
-    "ProximoPassoFinal": null
-  },
-  "passo_5": {
-    "Descricao": "Passo 5: Sucesso",
+  "passo_6": {
+    "Descricao": "Passo 6: Sucesso",
     "Acao": null,
     "Transicoes": [],
     "PassoPadrao": null,
