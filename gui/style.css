@@ -1,130 +1,197 @@
-/* Estilos gerais */
+/* Estilos gerais e fontes */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+:root {
+    --background-color: #f8f9fa;
+    --canvas-background: #ffffff;
+    --toolbox-background: #ffffff;
+    --header-background: #ffffff;
+    --border-color: #e0e0e0;
+    --shadow-color: rgba(0, 0, 0, 0.05);
+    --primary-color: #4285f4;
+    --text-color: #333;
+    --text-light: #666;
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f0f2f5;
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--background-color);
     margin: 0;
-    padding: 20px;
     display: flex;
     flex-direction: column;
     height: 100vh;
-    box-sizing: border-box;
+    color: var(--text-color);
 }
 
-h1, h3 {
+/* Cabeçalho */
+.header {
+    background-color: var(--header-background);
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px var(--shadow-color);
+    z-index: 100;
+}
+h1 {
     text-align: center;
-    color: #333;
-    flex-shrink: 0;
+    margin: 0;
+    font-size: 1.5em;
 }
 
+/* Container Principal */
 .main-container {
     display: flex;
     flex-grow: 1;
-    gap: 20px;
     overflow: hidden;
 }
 
-/* Painel de Ações (Toolbox) */
+/* Caixa de Ferramentas (Toolbox) */
 #toolbox {
-    width: 220px;
+    width: 240px;
     flex-shrink: 0;
-    border: 1px solid #ccc;
-    padding: 10px;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: var(--toolbox-background);
+    padding: 15px;
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
 }
-
+#toolbox h3 {
+    text-align: left;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--text-light);
+}
 .toolbox-item {
     padding: 12px;
     margin-bottom: 10px;
-    background-color: #e9efff;
-    border: 1px solid #c6d4ff;
-    border-radius: 5px;
+    background-color: #f1f3f5;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
     cursor: grab;
-    text-align: center;
+    text-align: left;
     font-weight: 500;
     user-select: none;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+.toolbox-item:hover {
+    background-color: #e9ecef;
+    box-shadow: 0 2px 4px var(--shadow-color);
 }
 
-/* Canvas do Drawflow */
-#drawflow {
+/* Wrapper do Canvas */
+#drawflow-wrapper {
     flex-grow: 1;
-    border-radius: 8px;
-    border: 2px dashed #d0d0d0;
-    background-color: #fff;
-    width: 100%;
-    height: 100%;
     position: relative;
 }
+#drawflow {
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(#ced4da 1px, transparent 1px);
+    background-size: 20px 20px;
+}
 
-/* --- ESTILOS PARA NÓS CUSTOMIZADOS --- */
-
+/* Estilos dos Nós */
 .drawflow-node {
     border-radius: 8px !important;
-    border: 1px solid #bbb !important;
-    background: #f9f9f9 !important;
-    width: 250px !important;
+    border: 1px solid #adb5bd !important;
+    background: var(--canvas-background) !important;
+    width: 260px !important;
     padding: 0 !important;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
-
 .drawflow-node.selected {
-    border-color: #007bff !important;
-    box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3);
 }
-
 .drawflow-node .drawflow_content_node {
     padding: 0 !important;
     width: 100% !important;
 }
-
-/* Título do Nó */
 .node-title {
-    background: #e9efff;
-    color: #333;
-    font-weight: bold;
-    padding: 10px;
+    background: #f1f3f5;
+    color: var(--text-color);
+    font-weight: 500;
+    padding: 10px 15px;
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-color);
 }
-
-/* Corpo do Nó */
 .node-body {
-    padding: 10px 15px;
+    padding: 15px;
 }
-
 .node-body label {
-    font-size: 12px;
-    color: #666;
+    font-size: 13px;
+    color: var(--text-light);
     display: block;
     margin-bottom: 5px;
 }
-
-.node-body input {
-    width: calc(100% - 12px);
-    padding: 6px;
-    border: 1px solid #ccc;
+.node-body input, .node-body select {
+    width: calc(100% - 16px);
+    padding: 8px;
+    border: 1px solid #ced4da;
     border-radius: 4px;
+    font-family: 'Roboto', sans-serif;
 }
-
-/* Estilos específicos para o nó de decisão (IF) */
 .if-node-body {
-    padding: 10px 15px;
-    background-color: #fff8e1;
+    padding: 15px;
+    background-color: #fff9db;
 }
-
 .if-node-outputs {
     padding: 5px 15px 10px 15px;
     font-size: 12px;
     font-weight: bold;
     line-height: 1.8;
 }
+.then-label { color: #1e8e3e; }
+.else-label { color: #d93025; }
+.drawflow-node.VerificarTela .output_1 .drawflow-dot { background: #34a853 !important; }
+.drawflow-node.VerificarTela .output_2 .drawflow-dot { background: #ea4335 !important; }
 
-.then-label { color: #28a745; }
-.else-label { color: #dc3545; }
-
-/* Rodapé */
-.footer { flex-shrink: 0; margin-top: 20px; padding: 10px; text-align: center; }
-#generate-json-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 5px; margin-bottom: 10px; }
-#json-output { background-color: #2d2d2d; color: #a9b7c6; padding: 15px; text-align: left; white-space: pre-wrap; word-wrap: break-word; border-radius: 5px; margin-top: 10px; max-height: 200px; overflow-y: auto; }
+/* Rodapé e Área do JSON */
+.footer {
+    background-color: var(--header-background);
+    border-top: 1px solid var(--border-color);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    max-height: 30vh; /* Limita a altura máxima */
+}
+.json-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+.json-controls h3 {
+    margin: 0;
+    text-align: left;
+    color: var(--text-light);
+}
+#generate-json-btn, #copy-json-btn {
+    padding: 8px 15px;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: #f1f3f5;
+    color: var(--text-color);
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+#generate-json-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+#generate-json-btn:hover { background-color: #3367d6; }
+#copy-json-btn:hover { background-color: #e9ecef; }
+#json-output {
+    background-color: #202124;
+    color: #e8eaed;
+    padding: 15px;
+    text-align: left;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border-radius: 5px;
+    flex-grow: 1;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace;
+}

@@ -1,11 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('drawflow');
     const generateJsonBtn = document.getElementById('generate-json-btn');
+    const copyJsonBtn = document.getElementById('copy-json-btn');
     const jsonOutput = document.getElementById('json-output');
 
     const editor = new Drawflow(container);
     editor.start();
 
+    // Habilita o zoom com o scroll do mouse
+    editor.zoom_max = 1.6;
+    editor.zoom_min = 0.4;
+    editor.reroute = true;
+
+    // --- Lista de Key Events (baseado no seu JSON) ---
+    const keyEvents = [
+        "key_back", "key_home", "key_dpad_up", "key_dpad_down", "key_dpad_left", "key_dpad_right", "key_dpad_center",
+        "key_volume_up", "key_volume_down", "key_power", "key_del", "key_enter", "key_escape", "key_menu", "key_app_switch"
+        // Adicionei apenas os mais comuns para manter a lista gerenciável
+    ];
+
+    // --- Lógica de Coloração e Observação ---
     const observer = new MutationObserver(() => {
         const allNodes = editor.getEditor().drawflow.Home.data;
         for (const nodeId in allNodes) {
@@ -15,14 +29,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (nodeElement) {
                     const thenDot = nodeElement.querySelector('.output_1 .drawflow-dot');
                     const elseDot = nodeElement.querySelector('.output_2 .drawflow-dot');
-                    if (thenDot) thenDot.style.background = '#28a745';
-                    if (elseDot) elseDot.style.background = '#dc3545';
+                    if (thenDot) thenDot.style.background = '#34a853';
+                    if (elseDot) elseDot.style.background = '#ea4335';
                 }
             }
         }
     });
     observer.observe(container, { childList: true, subtree: true });
 
+    // --- Lógica de Drag-and-Drop ---
     let draggedElement = null;
     document.querySelectorAll('.toolbox-item').forEach(item => {
         item.addEventListener('dragstart', (e) => {
@@ -55,6 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'Digitar':
                     html = `<div class="node-title">⌨️ Ação: Digitar</div><div class="node-body"><label>Texto a Digitar:</label><input type="text" df-texto placeholder="Ex: 'meu_usuario'"></div>`;
                     break;
+                // >>> NOVO NÓ KEYEVENT <<<
+                case 'KeyEvent':
+                    const options = keyEvents.map(key => `<option value="${key}">${key.replace('key_', '').toUpperCase()}</option>`).join('');
+                    html = `<div class="node-title">🔑 Ação: Evento de Tecla</div><div class="node-body"><label>Selecione o Evento:</label><select df-keyevent>${options}</select></div>`;
+                    break;
                 case 'VerificarTela':
                     outputs = 2;
                     html = `<div class="node-title">❓ Verificar Tela (IF)</div><div class="if-node-body"><label>Se encontrar elemento:</label><input type="text" df-elemento placeholder="Ex: 'Bem-vindo'"></div><div class="if-node-outputs"><div class="then-label">THEN</div><div class="else-label">ELSE</div></div>`;
@@ -74,38 +94,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- GERAÇÃO DO JSON (LÓGICA FINAL COM BUSCA EM PROFUNDIDADE - DFS) ---
+    // --- Geração e Cópia do JSON ---
     generateJsonBtn.addEventListener('click', () => {
         const exportedData = editor.export();
         const drawflowNodes = exportedData.drawflow.Home.data;
         const receita = {};
-        const visited = new Set(); // Para evitar loops infinitos
+        const visited = new Set();
 
-        // 1. Encontrar o nó inicial
         const startNodeId = Object.keys(drawflowNodes).find(id => drawflowNodes[id].name === 'Inicio');
         if (!startNodeId) {
-            alert("Erro: Nenhum nó 'Início' encontrado no fluxo. Por favor, adicione um.");
+            alert("Erro: Nenhum nó 'Início' encontrado no fluxo.");
             return;
         }
 
-        // 2. Função recursiva para percorrer o grafo (DFS)
         function traverse(nodeId) {
-            if (!nodeId || visited.has(nodeId)) {
-                return; // Se já visitou ou o nó é nulo, para.
-            }
-            
+            if (!nodeId || visited.has(nodeId)) return;
             visited.add(nodeId);
             const node = drawflowNodes[nodeId];
             if (!node) return;
 
-            // --- Constrói o passo atual ---
             const nodeType = node.name;
             const properties = node.data;
             const passoNome = (nodeType === 'Inicio') ? 'Inicio' : `passo_${nodeId}`;
 
             const thenConnection = node.outputs.output_1?.connections[0];
             const thenNodeId = thenConnection ? `passo_${thenConnection.node}` : null;
-
             const elseConnection = node.outputs.output_2?.connections[0];
             const elseNodeId = elseConnection ? `passo_${elseConnection.node}` : null;
 
@@ -121,34 +134,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 passo.Acao = { Tipo: "Tocar", ElementoComTexto: properties.elemento };
             } else if (nodeType === 'Digitar') {
                 passo.Acao = { Tipo: "Digitar", Texto: properties.texto };
-            }
-
-            if (nodeType === 'VerificarTela') {
-                passo.Transicoes.push({
-                    ChecarElementoComTexto: properties.elemento,
-                    ProximoPasso: thenNodeId
-                });
+            } else if (nodeType === 'KeyEvent') { // >>> LÓGICA PARA KEYEVENT <<<
+                passo.Acao = { Tipo: "KeyEvent", Evento: properties.keyevent };
+            } else if (nodeType === 'VerificarTela') {
+                passo.Transicoes.push({ ChecarElementoComTexto: properties.elemento, ProximoPasso: thenNodeId });
             }
 
             if (nodeType === 'Sucesso') passo.ProximoPassoFinal = "Fim";
             if (nodeType === 'Falha') passo.ProximoPassoFinal = "FimComErro";
             
             receita[passoNome] = passo;
-            // --- Fim da construção do passo ---
 
-            // --- Chamada recursiva para os próximos nós ---
-            // A ordem aqui é importante: primeiro o caminho THEN, depois o ELSE.
-            if (thenConnection) {
-                traverse(thenConnection.node);
-            }
-            if (elseConnection) {
-                traverse(elseConnection.node);
-            }
+            if (thenConnection) traverse(thenConnection.node);
+            if (elseConnection) traverse(elseConnection.node);
         }
 
-        // 3. Inicia a travessia a partir do nó inicial
         traverse(startNodeId);
-
         jsonOutput.textContent = JSON.stringify(receita, null, 2);
+    });
+
+    // >>> LÓGICA DO BOTÃO COPIAR <<<
+    copyJsonBtn.addEventListener('click', () => {
+        const jsonText = jsonOutput.textContent;
+        if (jsonText) {
+            navigator.clipboard.writeText(jsonText).then(() => {
+                copyJsonBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
+                setTimeout(() => {
+                    copyJsonBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar';
+                }, 2000);
+            }).catch(err => {
+                alert('Falha ao copiar o texto.');
+            });
+        }
     });
 });

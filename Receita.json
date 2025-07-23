@@ -3,6 +3,16 @@
     "Descricao": "Passo 1: Inicio",
     "Acao": null,
     "Transicoes": [],
+    "PassoPadrao": "passo_8",
+    "ProximoPassoFinal": null
+  },
+  "passo_8": {
+    "Descricao": "Passo 8: KeyEvent",
+    "Acao": {
+      "Tipo": "KeyEvent",
+      "Evento": "key_home"
+    },
+    "Transicoes": [],
     "PassoPadrao": "passo_2",
     "ProximoPassoFinal": null
   },
@@ -21,6 +31,26 @@
     "Acao": {
       "Tipo": "Tocar",
       "ElementoComTexto": "Definições"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_4",
+    "ProximoPassoFinal": null
+  },
+  "passo_4": {
+    "Descricao": "Passo 4: Tocar",
+    "Acao": {
+      "Tipo": "Tocar",
+      "ElementoComTexto": "Pesquisar"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_5",
+    "ProximoPassoFinal": null
+  },
+  "passo_5": {
+    "Descricao": "Passo 5: Digitar",
+    "Acao": {
+      "Tipo": "Digitar",
+      "Texto": "Acerca"
     },
     "Transicoes": [],
     "PassoPadrao": "passo_6",

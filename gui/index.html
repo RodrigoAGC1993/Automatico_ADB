@@ -3,34 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <title>Construtor de Automação Visual</title>
-    <!-- CSS do Drawflow -->
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
-    <!-- Nosso CSS customizado -->
     <link rel="stylesheet" href="style.css">
+    <!-- Ícones do Font Awesome para um visual mais profissional -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 </head>
 <body>
-    <h1>Construtor de Automação Visual</h1>
+    <header class="header">
+        <h1>Construtor de Automação Visual</h1>
+    </header>
+
     <div class="main-container">
-        <div id="toolbox">
-            <h3>Ações</h3>
-            <div class="toolbox-item" draggable="true" data-node="Inicio">Início</div>
-            <div class="toolbox-item" draggable="true" data-node="VerificarTela">Verificar Tela (IF)</div>
-            <div class="toolbox-item" draggable="true" data-node="Tocar">Ação: Tocar</div>
-            <div class="toolbox-item" draggable="true" data-node="Digitar">Ação: Digitar</div>
-            <div class="toolbox-item" draggable="true" data-node="Sucesso">Fim (Sucesso)</div>
-            <div class="toolbox-item" draggable="true" data-node="Falha">Fim (Falha)</div>
+        <aside id="toolbox">
+            <h3><i class="fa-solid fa-puzzle-piece"></i> Ações</h3>
+            <div class="toolbox-item" draggable="true" data-node="Inicio">▶ Início</div>
+            <div class="toolbox-item" draggable="true" data-node="VerificarTela">❓ Verificar Tela (IF)</div>
+            <div class="toolbox-item" draggable="true" data-node="Tocar">👆 Ação: Tocar</div>
+            <div class="toolbox-item" draggable="true" data-node="Digitar">⌨️ Ação: Digitar</div>
+            <!-- Novo item para Key Events -->
+            <div class="toolbox-item" draggable="true" data-node="KeyEvent">🔑 Ação: Evento de Tecla</div>
+            <div class="toolbox-item" draggable="true" data-node="Sucesso">✅ Fim (Sucesso)</div>
+            <div class="toolbox-item" draggable="true" data-node="Falha">❌ Fim (Falha)</div>
+        </aside>
+
+        <main id="drawflow-wrapper">
+            <div id="drawflow"></div>
+        </main>
+
+    </div>
+
+    <footer class="footer">
+        <div class="json-controls">
+            <h3><i class="fa-solid fa-code"></i> Receita Gerada</h3>
+            <button id="generate-json-btn" title="Gerar a receita a partir do fluxo visual"><i class="fa-solid fa-cogs"></i> Gerar Receita</button>
+            <button id="copy-json-btn" title="Copiar o código JSON para a área de transferência"><i class="fa-solid fa-copy"></i> Copiar</button>
         </div>
-
-        <div id="drawflow"></div>
-
-    </div>
-    <div class="footer">
-        <button id="generate-json-btn">Gerar Receita JSON</button>
-        <h3>Receita Gerada:</h3>
         <pre id="json-output"></pre>
-    </div>
+    </footer>
 
-    <!-- JS do Drawflow e nosso script -->
     <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
     <script defer src="script.js"></script>
 </body>

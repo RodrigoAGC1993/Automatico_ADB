@@ -1,4 +1,4 @@
-﻿﻿# --- INÍCIO DO MOTOR DE AUTOMAÇÃO (VERSÃO FINAL E ROBUSTA) ---
+# --- INÍCIO DO MOTOR DE AUTOMAÇÃO (VERSÃO FINAL COM KEY EVENTS) ---
 
 param(
     [Parameter(Mandatory=$false)]
@@ -7,6 +7,7 @@ param(
 
 # --- Funções Auxiliares ---
 
+# ... (As funções Get-ScreenData, Wait-For-ScreenChange, Test-ElementExists, Find-Element, Invoke-TapAction, Invoke-TypeAction permanecem as mesmas da resposta anterior) ...
 function Get-ScreenData($adbTarget) {
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         try {
@@ -59,35 +60,53 @@ function Find-Element($xml, $keyword) {
     return $xml.SelectSingleNode($query)
 }
 
-# >>> FUNÇÕES DE AÇÃO ATUALIZADAS <<<
 function Invoke-TapAction($adbTarget, $xml, $keyword) {
     $element = Find-Element -xml $xml -keyword $keyword
     if (-not $element) {
         Write-Warning "Elemento '$keyword' para tocar não foi encontrado na tela atual."
-        return $false # Retorna falha
+        return $false
     }
     $bounds = $element.bounds
     if ($bounds -notmatch '\[(\d+),(\d+)\]\[(\d+),(\d+)\]') { Write-Warning "Formato de 'bounds' inválido: $bounds"; return $false }
     $xMid = ([int]$Matches[1] + [int]$Matches[3]) / 2
     $yMid = ([int]$Matches[2] + [int]$Matches[4]) / 2
-    $elementText = if ($element.text) { $element.text } else { $element.'content-desc' }
-    Write-Host "Ação: Tocando em '$elementText'..."
+    Write-Host "Ação: Tocando em '$($element.text)'..."
     adb $adbTarget shell input tap "$xMid $yMid"
-    return $true # Retorna sucesso
+    return $true
 }
 
 function Invoke-TypeAction($adbTarget, $textToType) {
     $formattedText = $textToType.Replace(' ', '%s')
     Write-Host "Ação: Digitando o texto '$textToType'..."
     adb $adbTarget shell input text "'$formattedText'"
-    return $true # Assume sucesso
+    return $true
+}
+
+# >>> NOVA FUNÇÃO PARA KEY EVENTS <<<
+function Invoke-KeyEventAction($adbTarget, $keyEventName) {
+    # Mapeamento dos códigos de evento de tecla
+    $keyEventMap = @{
+        "key_back" = 4; "key_home" = 3; "key_dpad_up" = 19; "key_dpad_down" = 20; "key_dpad_left" = 21;
+        "key_dpad_right" = 22; "key_dpad_center" = 23; "key_volume_up" = 24; "key_volume_down" = 25;
+        "key_power" = 26; "key_del" = 67; "key_enter" = 66; "key_escape" = 111; "key_menu" = 82; "key_app_switch" = 187
+    }
+    
+    if ($keyEventMap.ContainsKey($keyEventName)) {
+        $keyCode = $keyEventMap[$keyEventName]
+        Write-Host "Ação: Enviando evento de tecla '$keyEventName' (código $keyCode)..."
+        adb $adbTarget shell input keyevent $keyCode
+        return $true
+    } else {
+        Write-Warning "Evento de tecla '$keyEventName' desconhecido."
+        return $false
+    }
 }
 
 
 # --- Lógica Principal do Motor ---
 
 Write-Host "Carregando receita do arquivo 'receita.json'..."
-try { $receita = Get-Content -Raw -Path ".\receita.json" | ConvertFrom-Json } catch { Write-Error "Não foi possível encontrar ou ler o arquivo 'receita.json'."; exit }
+try { $receita = Get-Content -Raw -Path ".\receita.json" -Encoding UTF8BOM | ConvertFrom-Json } catch { Write-Error "Não foi possível encontrar ou ler o arquivo 'receita.json'."; exit }
 
 $adbTarget = ""
 if ($PSBoundParameters.ContainsKey('IpAddress')) {
@@ -110,30 +129,28 @@ while ($passoAtualNome -and $passoAtualNome -ne "Fim" -and $passoAtualNome -ne "
     $telaAtualData = Get-ScreenData $adbTarget
     if (-not $telaAtualData) { Write-Error "Não foi possível obter a hierarquia da UI."; $fatalError = $true; continue }
 
-    # >>> LÓGICA DE AÇÃO E ESPERA REFEITA <<<
     if ($passoAtual.Acao -and $passoAtual.Acao.Tipo) {
         $hashAntesDaAcao = $telaAtualData.Hash
         $acaoBemSucedida = $false
 
         switch ($passoAtual.Acao.Tipo) {
-            "Tocar"   { $acaoBemSucedida = Invoke-TapAction -adbTarget $adbTarget -xml $telaAtualData.Xml -keyword $passoAtual.Acao.ElementoComTexto }
-            "Digitar" { $acaoBemSucedida = Invoke-TypeAction -adbTarget $adbTarget -textToType $passoAtual.Acao.Texto }
+            "Tocar"    { $acaoBemSucedida = Invoke-TapAction -adbTarget $adbTarget -xml $telaAtualData.Xml -keyword $passoAtual.Acao.ElementoComTexto }
+            "Digitar"  { $acaoBemSucedida = Invoke-TypeAction -adbTarget $adbTarget -textToType $passoAtual.Acao.Texto }
+            "KeyEvent" { $acaoBemSucedida = Invoke-KeyEventAction -adbTarget $adbTarget -keyEventName $passoAtual.Acao.Evento }
         }
         
-        # Só espera por mudança na tela se a ação foi realmente executada
         if ($acaoBemSucedida) {
             $telaMudou = Wait-For-ScreenChange -adbTarget $adbTarget -initialHash $hashAntesDaAcao -newXmlData ([ref]$telaAtualData)
             if (-not $telaMudou) { $fatalError = $true; continue }
         }
     }
 
-    # A verificação de transição usa os dados da tela mais recentes
     $xmlDaTela = $telaAtualData.Xml
     $proximoPassoDefinido = $false
     if ($passoAtual.Transicoes) {
         foreach ($transicao in $passoAtual.Transicoes) {
             if ($transicao.ChecarElementoComTexto -and (Find-Element $xmlDaTela $transicao.ChecarElementoComTexto)) {
-                Write-Host "Condição satisfeita: Elemento '$($transicao.ChecarElementoComTexto)' encontrado. Indo para o passo '$($transicao.ProximoPasso)'."
+                Write-Host "Condição satisfeita: Indo para o passo '$($transicao.ProximoPasso)'."
                 $passoAtualNome = $transicao.ProximoPasso; $proximoPassoDefinido = $true; break
             }
         }
@@ -143,7 +160,6 @@ while ($passoAtualNome -and $passoAtualNome -ne "Fim" -and $passoAtualNome -ne "
         if ($passoAtual.ProximoPassoFinal) {
             $passoAtualNome = $passoAtual.ProximoPassoFinal
         } else {
-            Write-Host "Nenhuma condição satisfeita. Seguindo para o passo padrão: '$($passoAtual.PassoPadrao)'."
             $passoAtualNome = $passoAtual.PassoPadrao
         }
     }
