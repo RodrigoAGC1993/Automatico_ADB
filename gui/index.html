@@ -5,7 +5,6 @@
     <title>Construtor de Automação Visual</title>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
     <link rel="stylesheet" href="style.css">
-    <!-- Ícones do Font Awesome para um visual mais profissional -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 </head>
 <body>
@@ -20,8 +19,9 @@
             <div class="toolbox-item" draggable="true" data-node="VerificarTela">❓ Verificar Tela (IF)</div>
             <div class="toolbox-item" draggable="true" data-node="Tocar">👆 Ação: Tocar</div>
             <div class="toolbox-item" draggable="true" data-node="Digitar">⌨️ Ação: Digitar</div>
-            <!-- Novo item para Key Events -->
             <div class="toolbox-item" draggable="true" data-node="KeyEvent">🔑 Ação: Evento de Tecla</div>
+            <!-- Novo Bloco de Loop -->
+            <div class="toolbox-item" draggable="true" data-node="Loop">🔁 Loop (For / Do-While)</div>
             <div class="toolbox-item" draggable="true" data-node="Sucesso">✅ Fim (Sucesso)</div>
             <div class="toolbox-item" draggable="true" data-node="Falha">❌ Fim (Falha)</div>
         </aside>
@@ -29,7 +29,6 @@
         <main id="drawflow-wrapper">
             <div id="drawflow"></div>
         </main>
-
     </div>
 
     <footer class="footer">

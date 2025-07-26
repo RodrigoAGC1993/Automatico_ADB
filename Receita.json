@@ -1,34 +1,26 @@
 ﻿{
   "Inicio": {
-    "Descricao": "Passo 1: Inicio",
+    "Descricao": "Passo 1: Início do Tour 2",
     "Acao": null,
-    "Transicoes": [],
-    "PassoPadrao": "passo_8",
-    "ProximoPassoFinal": null
-  },
-  "passo_8": {
-    "Descricao": "Passo 8: KeyEvent",
-    "Acao": {
-      "Tipo": "KeyEvent",
-      "Evento": "key_home"
-    },
     "Transicoes": [],
     "PassoPadrao": "passo_2",
     "ProximoPassoFinal": null
   },
   "passo_2": {
-    "Descricao": "Passo 2: Tocar",
+    "Descricao": "Passo 2: Tocar na pasta 'Apps do Sistema'",
     "Acao": {
+      "EsperaMudanca": true,
       "Tipo": "Tocar",
-      "ElementoComTexto": "Apps"
+      "ElementoComTexto": "Apps do Sistema"
     },
     "Transicoes": [],
     "PassoPadrao": "passo_3",
     "ProximoPassoFinal": null
   },
   "passo_3": {
-    "Descricao": "Passo 3: Tocar",
+    "Descricao": "Passo 3: Tocar no ícone 'Definições'",
     "Acao": {
+      "EsperaMudanca": true,
       "Tipo": "Tocar",
       "ElementoComTexto": "Definições"
     },
@@ -37,27 +29,86 @@
     "ProximoPassoFinal": null
   },
   "passo_4": {
-    "Descricao": "Passo 4: Tocar",
+    "Descricao": "Passo 4: Loop 'For' para rolar a tela 3 vezes",
     "Acao": {
-      "Tipo": "Tocar",
-      "ElementoComTexto": "Pesquisar"
-    },
-    "Transicoes": [],
-    "PassoPadrao": "passo_5",
-    "ProximoPassoFinal": null
-  },
-  "passo_5": {
-    "Descricao": "Passo 5: Digitar",
-    "Acao": {
-      "Tipo": "Digitar",
-      "Texto": "Acerca"
+      "Tipo": "Loop",
+      "LoopType": "For",
+      "Count": 3,
+      "LoopBodyPasso": "passo_5"
     },
     "Transicoes": [],
     "PassoPadrao": "passo_6",
     "ProximoPassoFinal": null
   },
+  "passo_5": {
+    "Descricao": "Passo 5 (Dentro do Loop): Rolar para baixo",
+    "Acao": {
+      "EsperaMudanca": true,
+      "Tipo": "KeyEvent",
+      "Evento": "key_dpad_down"
+    },
+    "Transicoes": [],
+    "PassoPadrao": null,
+    "ProximoPassoFinal": null
+  },
   "passo_6": {
-    "Descricao": "Passo 6: Sucesso",
+    "Descricao": "Passo 6: Tocar em 'Sistema'",
+    "Acao": {
+      "EsperaMudanca": true,
+      "Tipo": "Tocar",
+      "ElementoComTexto": "Sistema"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_7",
+    "ProximoPassoFinal": null
+  },
+  "passo_7": {
+    "Descricao": "Passo 7: Tocar em 'Idiomas e introdução'",
+    "Acao": {
+      "EsperaMudanca": true,
+      "Tipo": "Tocar",
+      "ElementoComTexto": "Idiomas e introdução"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_8",
+    "ProximoPassoFinal": null
+  },
+  "passo_8": {
+    "Descricao": "Passo 8: Loop 'Do-While' para voltar às Definições principais",
+    "Acao": {
+      "Tipo": "Loop",
+      "LoopType": "DoWhile",
+      "ConditionElement": "Rede e Internet",
+      "LoopBodyPasso": "passo_9"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_10",
+    "ProximoPassoFinal": null
+  },
+  "passo_9": {
+    "Descricao": "Passo 9 (Dentro do Loop): Pressionar 'Voltar'",
+    "Acao": {
+      "EsperaMudanca": true,
+      "Tipo": "KeyEvent",
+      "Evento": "key_back"
+    },
+    "Transicoes": [],
+    "PassoPadrao": null,
+    "ProximoPassoFinal": null
+  },
+  "passo_10": {
+    "Descricao": "Passo 10: Pressionar 'Home' para garantir o retorno",
+    "Acao": {
+      "EsperaMudanca": true,
+      "Tipo": "KeyEvent",
+      "Evento": "key_home"
+    },
+    "Transicoes": [],
+    "PassoPadrao": "passo_11",
+    "ProximoPassoFinal": null
+  },
+  "passo_11": {
+    "Descricao": "Passo 11: Sucesso do Tour 2",
     "Acao": null,
     "Transicoes": [],
     "PassoPadrao": null,

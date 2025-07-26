@@ -1,4 +1,4 @@
-﻿# --- INÍCIO DO MOTOR DE AUTOMAÇÃO (VERSÃO FINAL COM KEY EVENTS) ---
+﻿# --- INÍCIO DO MOTOR DE AUTOMAÇÃO (VERSÃO FINAL COM "GUARDIÃO ANR") ---
 
 param(
     [Parameter(Mandatory=$false)]
@@ -6,7 +6,6 @@ param(
 )
 
 # --- Funções Auxiliares ---
-
 function Get-ScreenData($adbTarget) {
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         try {
@@ -59,18 +58,18 @@ function Find-Element($xml, $keyword) {
     return $xml.SelectSingleNode($query)
 }
 
+function Test-ElementExists($xml, $keyword) {
+    return (Find-Element -xml $xml -keyword $keyword) -ne $null
+}
+
 function Invoke-TapAction($adbTarget, $xml, $keyword) {
     $element = Find-Element -xml $xml -keyword $keyword
-    if (-not $element) {
-        Write-Warning "Elemento '$keyword' para tocar não foi encontrado na tela atual."
-        return $false
-    }
+    if (-not $element) { Write-Warning "Elemento '$keyword' para tocar não foi encontrado."; return $false }
     $bounds = $element.bounds
     if ($bounds -notmatch '\[(\d+),(\d+)\]\[(\d+),(\d+)\]') { Write-Warning "Formato de 'bounds' inválido: $bounds"; return $false }
     $xMid = ([int]$Matches[1] + [int]$Matches[3]) / 2
     $yMid = ([int]$Matches[2] + [int]$Matches[4]) / 2
-    $elementText = if ($element.text) { $element.text } else { $element.'content-desc' }
-    Write-Host "Ação: Tocando em '$elementText'..."
+    Write-Host "Ação: Tocando em '$($element.text)'..."
     adb $adbTarget shell input tap "$xMid $yMid"
     return $true
 }
@@ -82,32 +81,59 @@ function Invoke-TypeAction($adbTarget, $textToType) {
     return $true
 }
 
-# >>> NOVA FUNÇÃO PARA KEY EVENTS <<<
 function Invoke-KeyEventAction($adbTarget, $keyEventName) {
-    # Mapeamento dos códigos de evento de tecla mais comuns
-    $keyEventMap = @{
-        "key_back" = 4; "key_home" = 3; "key_dpad_up" = 19; "key_dpad_down" = 20; "key_dpad_left" = 21;
-        "key_dpad_right" = 22; "key_dpad_center" = 23; "key_volume_up" = 24; "key_volume_down" = 25;
-        "key_power" = 26; "key_del" = 67; "key_enter" = 66; "key_escape" = 111; "key_menu" = 82; "key_app_switch" = 187
-    }
-    
+    $keyEventMap = @{ "key_back" = 4; "key_home" = 3; "key_dpad_up" = 19; "key_dpad_down" = 20; "key_dpad_left" = 21; "key_dpad_right" = 22; "key_dpad_center" = 23; "key_volume_up" = 24; "key_volume_down" = 25; "key_power" = 26; "key_del" = 67; "key_enter" = 66; "key_escape" = 111; "key_menu" = 82; "key_app_switch" = 187 }
     if ($keyEventMap.ContainsKey($keyEventName)) {
         $keyCode = $keyEventMap[$keyEventName]
         Write-Host "Ação: Enviando evento de tecla '$keyEventName' (código $keyCode)..."
         adb $adbTarget shell input keyevent $keyCode
         return $true
-    } else {
-        Write-Warning "Evento de tecla '$keyEventName' desconhecido."
+    } else { Write-Warning "Evento de tecla '$keyEventName' desconhecido."; return $false }
+}
+
+function Evaluate-Conditions($xml, $conditionBlock) {
+    if (-not $conditionBlock.Condicoes) { return $false }
+    $operator = $conditionBlock.Operador
+    $allConditions = $conditionBlock.Condicoes
+    if ($operator -eq 'OR') {
+        foreach ($condition in $allConditions) { if (Test-ElementExists $xml $condition) { return $true } }
         return $false
+    } else {
+        foreach ($condition in $allConditions) { if (-not (Test-ElementExists $xml $condition)) { return $false } }
+        return $true
     }
+}
+
+# >>> NOVA FUNÇÃO "GUARDIÃO" PARA LIDAR COM ERROS DO SISTEMA <<<
+function Handle-SystemDialogs($adbTarget, [ref]$screenData) {
+    $xml = $screenData.Value.Xml
+    # Verifica se o diálogo "não está a responder" (ANR) está na tela
+    if (Test-ElementExists -xml $xml -keyword "não está a responder") {
+        Write-Warning "Detectado diálogo 'IU não está a responder'. Tentando tocar em 'Aguardar'."
+        $initialHash = $screenData.Value.Hash
+        
+        $tappedWait = Invoke-TapAction -adbTarget $adbTarget -xml $xml -keyword "Aguardar"
+        
+        if ($tappedWait) {
+            # Espera o diálogo desaparecer
+            $dialogDismissed = Wait-For-ScreenChange -adbTarget $adbTarget -initialHash $initialHash -newXmlData ([ref]$screenData)
+            if (-not $dialogDismissed) {
+                Write-Error "Tocou em 'Aguardar', mas o diálogo não desapareceu."
+            }
+            return $true # Indica que um diálogo foi tratado e o passo deve ser repetido
+        } else {
+            Write-Warning "Diálogo ANR detectado, mas o botão 'Aguardar' não foi encontrado."
+            return $false
+        }
+    }
+    return $false # Nenhum diálogo do sistema encontrado
 }
 
 
 # --- Lógica Principal do Motor ---
 
 Write-Host "Carregando receita do arquivo 'receita.json'..."
-# Adicionado -Encoding UTF8BOM para compatibilidade
-try { $receita = Get-Content -Raw -Path ".\receita.json" | ConvertFrom-Json } catch { Write-Error "Não foi possível encontrar ou ler o arquivo 'receita.json'."; exit }
+try { $receita = Get-Content -Raw -Path ".\receita.json" -Encoding UTF8 | ConvertFrom-Json } catch { Write-Error "Não foi possível encontrar ou ler o arquivo 'receita.json'."; exit }
 
 $adbTarget = ""
 if ($PSBoundParameters.ContainsKey('IpAddress')) {
@@ -118,7 +144,9 @@ if ($PSBoundParameters.ContainsKey('IpAddress')) {
 $passoAtualNome = ($receita.PSObject.Properties | Where-Object { $_.Name -eq 'Inicio' }).Name
 if (-not $passoAtualNome) { Write-Error "Ponto de partida 'Inicio' não encontrado na receita.json."; exit }
 
-$maxPassos = 20; $passoCount = 0; $fatalError = $false
+$maxPassos = 100; $passoCount = 0; $fatalError = $false
+$loopCounters = @{}
+$callStack = [System.Collections.Stack]::new()
 
 while ($passoAtualNome -and $passoAtualNome -ne "Fim" -and $passoAtualNome -ne "FimComErro" -and $passoCount -lt $maxPassos -and (-not $fatalError)) {
     $passoCount++
@@ -127,21 +155,36 @@ while ($passoAtualNome -and $passoAtualNome -ne "Fim" -and $passoAtualNome -ne "
 
     Write-Host "---"; Write-Host "Passo ($passoCount/$maxPassos): $($passoAtual.Descricao) ($passoAtualNome)"
     
-    $telaAtualData = Get-ScreenData $adbTarget
-    if (-not $telaAtualData) { Write-Error "Não foi possível obter a hierarquia da UI."; $fatalError = $true; continue }
+    # >>> NOVA LÓGICA DE PRÉ-VERIFICAÇÃO <<<
+    $dialogHandled = $false
+    do {
+        $telaAtualData = Get-ScreenData $adbTarget
+        if (-not $telaAtualData) { Write-Error "Não foi possível obter a hierarquia da UI."; $fatalError = $true; break }
+
+        # O "Guardião" é chamado aqui. Ele atualiza $telaAtualData se lidar com um diálogo.
+        $dialogHandled = Handle-SystemDialogs -adbTarget $adbTarget -screenData ([ref]$telaAtualData)
+
+    } while ($dialogHandled -and (-not $fatalError)) # Continua no loop enquanto diálogos de erro estiverem sendo tratados
+
+    if ($fatalError) { continue } # Se a captura da UI falhou, pula para o fim
 
     if ($passoAtual.Acao -and $passoAtual.Acao.Tipo) {
         $hashAntesDaAcao = $telaAtualData.Hash
         $acaoBemSucedida = $false
 
-        # >>> ADICIONADO O CASO "KEYEVENT" AO SWITCH <<<
         switch ($passoAtual.Acao.Tipo) {
             "Tocar"    { $acaoBemSucedida = Invoke-TapAction -adbTarget $adbTarget -xml $telaAtualData.Xml -keyword $passoAtual.Acao.ElementoComTexto }
             "Digitar"  { $acaoBemSucedida = Invoke-TypeAction -adbTarget $adbTarget -textToType $passoAtual.Acao.Texto }
             "KeyEvent" { $acaoBemSucedida = Invoke-KeyEventAction -adbTarget $adbTarget -keyEventName $passoAtual.Acao.Evento }
+            "Loop"     {
+                if (-not $loopCounters.ContainsKey($passoAtualNome)) {
+                    if ($passoAtual.Acao.LoopType -eq 'For') { $loopCounters[$passoAtualNome] = [int]$passoAtual.Acao.Count }
+                }
+                $acaoBemSucedida = $true
+            }
         }
         
-        if ($acaoBemSucedida) {
+        if ($acaoBemSucedida -and $passoAtual.Acao.EsperaMudanca -ne $false -and $passoAtual.Acao.Tipo -ne 'Loop') {
             $telaMudou = Wait-For-ScreenChange -adbTarget $adbTarget -initialHash $hashAntesDaAcao -newXmlData ([ref]$telaAtualData)
             if (-not $telaMudou) { $fatalError = $true; continue }
         }
@@ -149,21 +192,52 @@ while ($passoAtualNome -and $passoAtualNome -ne "Fim" -and $passoAtualNome -ne "
 
     $xmlDaTela = $telaAtualData.Xml
     $proximoPassoDefinido = $false
-    if ($passoAtual.Transicoes) {
+
+    if ($passoAtual.Acao.Tipo -eq 'Loop') {
+        $loopInfo = $passoAtual.Acao
+        if ($loopInfo.LoopType -eq 'For') {
+            if ($loopCounters[$passoAtualNome] -gt 0) {
+                Write-Host "Loop 'For': Repetições restantes $($loopCounters[$passoAtualNome]). Entrando no corpo do loop."
+                $loopCounters[$passoAtualNome]--
+                $callStack.Push($passoAtualNome)
+                $passoAtualNome = $loopInfo.LoopBodyPasso
+            } else {
+                Write-Host "Loop 'For' concluído. Saindo do loop."
+                $loopCounters.Remove($passoAtualNome)
+                $passoAtualNome = $passoAtual.PassoPadrao
+            }
+        } elseif ($loopInfo.LoopType -eq 'DoWhile') {
+            if (-not (Test-ElementExists $xmlDaTela $loopInfo.ConditionElement)) {
+                Write-Host "Loop 'DoWhile': Condição de parada não encontrada. Entrando no corpo do loop."
+                $callStack.Push($passoAtualNome)
+                $passoAtualNome = $loopInfo.LoopBodyPasso
+            } else {
+                Write-Host "Loop 'DoWhile': Condição de parada encontrada. Saindo do loop."
+                $passoAtualNome = $passoAtual.PassoPadrao
+            }
+        }
+        $proximoPassoDefinido = $true
+    }
+    
+    if ((-not $proximoPassoDefinido) -and $passoAtual.Transicoes) {
         foreach ($transicao in $passoAtual.Transicoes) {
-            if ($transicao.ChecarElementoComTexto -and (Find-Element $xmlDaTela $transicao.ChecarElementoComTexto)) {
-                Write-Host "Condição satisfeita: Elemento '$($transicao.ChecarElementoComTexto)' encontrado. Indo para o passo '$($transicao.ProximoPasso)'."
+            if (Evaluate-Conditions $xmlDaTela $transicao) {
+                Write-Host "Condição IF satisfeita. Indo para o passo '$($transicao.ProximoPasso)'."
                 $passoAtualNome = $transicao.ProximoPasso; $proximoPassoDefinido = $true; break
             }
         }
     }
 
     if (-not $proximoPassoDefinido) {
-        if ($passoAtual.ProximoPassoFinal) {
-            $passoAtualNome = $passoAtual.ProximoPassoFinal
+        if (($passoAtual.PassoPadrao -eq $null) -and ($passoAtual.ProximoPassoFinal -eq $null) -and ($callStack.Count -gt 0)) {
+            Write-Host "Fim do corpo do loop. Retornando para reavaliação do loop."
+            $passoAtualNome = $callStack.Pop()
         } else {
-            Write-Host "Nenhuma condição satisfeita. Seguindo para o passo padrão: '$($passoAtual.PassoPadrao)'."
-            $passoAtualNome = $passoAtual.PassoPadrao
+            if ($passoAtual.ProximoPassoFinal) {
+                $passoAtualNome = $passoAtual.ProximoPassoFinal
+            } else {
+                $passoAtualNome = $passoAtual.PassoPadrao
+            }
         }
     }
 }

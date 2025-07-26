@@ -93,7 +93,7 @@ h1 {
     border-radius: 8px !important;
     border: 1px solid #adb5bd !important;
     background: var(--canvas-background) !important;
-    width: 260px !important;
+    width: 280px !important;
     padding: 0 !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
@@ -124,22 +124,73 @@ h1 {
     margin-bottom: 5px;
 }
 .node-body input, .node-body select {
-    width: calc(100% - 16px);
+    width: calc(100% - 18px);
     padding: 8px;
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-family: 'Roboto', sans-serif;
 }
-.if-node-body {
-    padding: 15px;
-    background-color: #fff9db;
-}
-.if-node-outputs {
-    padding: 5px 15px 10px 15px;
+
+/* Estilo para o rodapé do nó com o toggle */
+.node-footer {
+    padding: 10px 15px;
+    border-top: 1px solid var(--border-color);
+    background-color: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 12px;
-    font-weight: bold;
-    line-height: 1.8;
+    color: var(--text-light);
 }
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+.toggle-switch input { display: none; }
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 20px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px; width: 14px;
+    left: 3px; bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+input:checked + .slider { background-color: var(--primary-color); }
+input:checked + .slider:before { transform: translateX(20px); }
+
+/* Estilos para o IF Avançado */
+.if-node-body { padding: 15px; background-color: #fff9db; }
+.condition-row { display: flex; gap: 5px; align-items: center; margin-bottom: 8px; }
+.condition-row input { flex-grow: 1; }
+.condition-row button { background: #f8d7da; border: 1px solid #f5c2c7; cursor: pointer; width: 30px; height: 30px; border-radius: 4px; }
+.if-node-body .add-condition-btn {
+    background: none; border: 1px dashed #ccc; cursor: pointer;
+    padding: 5px; width: 100%; margin-top: 5px; border-radius: 4px;
+}
+.if-node-body .operator-select { margin-bottom: 10px; }
+
+/* Estilos para o Loop */
+.loop-node-body { padding: 15px; background-color: #e6f4ea; }
+.loop-params { margin-top: 10px; }
+.loop-outputs { padding: 5px 15px 10px 15px; font-size: 12px; font-weight: bold; line-height: 1.8; }
+.loop-body-label { color: #007bff; }
+.loop-end-label { color: #6c757d; }
+.drawflow-node.Loop .output_1 .drawflow-dot { background: #007bff !important; }
+.drawflow-node.Loop .output_2 .drawflow-dot { background: #6c757d !important; }
+
+/* Estilos para IF */
+.if-node-outputs { padding: 5px 15px 10px 15px; font-size: 12px; font-weight: bold; line-height: 1.8; }
 .then-label { color: #1e8e3e; }
 .else-label { color: #d93025; }
 .drawflow-node.VerificarTela .output_1 .drawflow-dot { background: #34a853 !important; }
@@ -152,7 +203,7 @@ h1 {
     padding: 15px;
     display: flex;
     flex-direction: column;
-    max-height: 30vh; /* Limita a altura máxima */
+    max-height: 30vh;
 }
 .json-controls {
     display: flex;
